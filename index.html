@@ -1,0 +1,1283 @@
+<title>Woordle</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap">
+<style>
+/* ─── Design tokens ───────────────────────────────────────────────────── */
+:root {
+  --bg: #eef2ff;
+  --surface: #ffffff;
+  --fg: #1e1b4b;
+  --muted: #6b7280;
+  --border: #c7d2fe;
+  --tile-bg: #f1f5f9;
+  --key-bg: #dde3f7;
+  --key-fg: #1e1b4b;
+  --correct: #16a34a;
+  --present: #d97706;
+  --absent: #94a3b8;
+  --accent: #6366f1;
+  --accent2: #ec4899;
+  --r: 10px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d0d1f;
+    --surface: #1a1a30;
+    --fg: #e0e7ff;
+    --muted: #94a3b8;
+    --border: #3730a3;
+    --tile-bg: #1e2035;
+    --key-bg: #2d2d50;
+    --key-fg: #e0e7ff;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d0d1f;
+  --surface: #1a1a30;
+  --fg: #e0e7ff;
+  --muted: #94a3b8;
+  --border: #3730a3;
+  --tile-bg: #1e2035;
+  --key-bg: #2d2d50;
+  --key-fg: #e0e7ff;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  font-family: 'Nunito', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-inline: 16px;
+  padding-block: 10px 20px;
+}
+
+/* ─── Header ──────────────────────────────────────────────────────────── */
+header {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.logo {
+  font-size: 1.9rem;
+  font-weight: 900;
+  letter-spacing: -1px;
+  background: linear-gradient(120deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.header-actions { display: flex; gap: 8px; align-items: center; }
+
+.icon-btn {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 6px 10px;
+  line-height: 1;
+  transition: transform 0.15s, box-shadow 0.15s;
+  color: var(--fg);
+}
+.icon-btn:hover { transform: scale(1.08); box-shadow: 0 2px 8px rgba(99,102,241,0.25); }
+.icon-btn:active { transform: scale(0.96); }
+
+/* ─── Mode badge ──────────────────────────────────────────────────────── */
+#mode-badge {
+  width: 100%;
+  max-width: 480px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+}
+.badge-daily {
+  background: linear-gradient(120deg, #fde68a, #fbbf24);
+  color: #78350f;
+}
+.badge-practice {
+  background: linear-gradient(120deg, #bbf7d0, #4ade80);
+  color: #14532d;
+}
+.badge-date {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+/* ─── Game area ───────────────────────────────────────────────────────── */
+#game-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 480px;
+  gap: 10px;
+}
+
+#board-wrap {
+  width: 100%;
+  max-height: 46vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 2px;
+  scroll-behavior: smooth;
+}
+
+.row { display: flex; gap: 6px; }
+
+.tile {
+  width: 54px;
+  height: 54px;
+  border: 2.5px solid var(--border);
+  border-radius: var(--r);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.65rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  background: var(--tile-bg);
+  color: var(--fg);
+  transition: border-color 0.12s;
+  cursor: default;
+}
+.len-6 .tile { width: 48px; height: 50px; font-size: 1.45rem; }
+.len-7 .tile { width: 42px; height: 46px; font-size: 1.25rem; }
+
+/* Tile has a letter (active row only) */
+.tile.has-letter { border-color: var(--accent); }
+
+/* Cursor tile in active row */
+.tile.cursor {
+  border-color: var(--accent2);
+  border-width: 3px;
+  cursor: pointer;
+}
+.tile.cursor.empty::after {
+  content: '|';
+  color: var(--accent2);
+  animation: blink 0.9s step-end infinite;
+  font-size: 1.4rem;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* Tiles in active row are clickable */
+.tile.active-tile { cursor: pointer; }
+.tile.active-tile:hover { border-color: var(--accent); }
+
+/* Revealed tile colors */
+.tile.correct { background: var(--correct); border-color: var(--correct); color: #fff; }
+.tile.present { background: var(--present); border-color: var(--present); color: #fff; }
+.tile.absent  { background: var(--absent);  border-color: var(--absent);  color: #fff; }
+
+/* Flip animation — only on revealed rows */
+.tile.flip-0 { animation: flip 0.45s 0.0s ease both; }
+.tile.flip-1 { animation: flip 0.45s 0.1s ease both; }
+.tile.flip-2 { animation: flip 0.45s 0.2s ease both; }
+.tile.flip-3 { animation: flip 0.45s 0.3s ease both; }
+.tile.flip-4 { animation: flip 0.45s 0.4s ease both; }
+.tile.flip-5 { animation: flip 0.45s 0.5s ease both; }
+.tile.flip-6 { animation: flip 0.45s 0.6s ease both; }
+
+@keyframes flip {
+  0%  { transform: rotateX(0deg); }
+  49% { transform: rotateX(90deg); }
+  50% { transform: rotateX(90deg); }
+  100%{ transform: rotateX(0deg); }
+}
+
+@keyframes shake {
+  0%,100%{ transform: translateX(0); }
+  18%    { transform: translateX(-9px); }
+  36%    { transform: translateX(9px); }
+  54%    { transform: translateX(-6px); }
+  72%    { transform: translateX(6px); }
+}
+.row.shake { animation: shake 0.38s ease; }
+
+/* ─── Message ─────────────────────────────────────────────────────────── */
+#message {
+  min-height: 26px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--accent2);
+  text-align: center;
+}
+
+/* ─── Keyboard ────────────────────────────────────────────────────────── */
+#keyboard { display: flex; flex-direction: column; gap: 6px; align-items: center; width: 100%; }
+.key-row  { display: flex; gap: 5px; }
+
+.key {
+  height: 52px;
+  min-width: 36px;
+  padding: 0 6px;
+  border-radius: 8px;
+  border: 1.5px solid transparent;
+  background: var(--key-bg);
+  color: var(--key-fg);
+  font-size: 0.82rem;
+  font-weight: 800;
+  font-family: 'Nunito', sans-serif;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: background 0.15s, transform 0.08s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.key:active { transform: scale(0.93); }
+.key.wide   { min-width: 58px; font-size: 0.72rem; }
+.key.correct{ background: var(--correct); color: #fff; border-color: var(--correct); }
+.key.present{ background: var(--present); color: #fff; border-color: var(--present); }
+.key.absent { background: var(--absent);  color: #fff; border-color: var(--absent); }
+
+/* ─── Win screen ──────────────────────────────────────────────────────── */
+#win-screen {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  padding: 28px 24px;
+  background: var(--surface);
+  border-radius: 20px;
+  border: 2px solid var(--border);
+  box-shadow: 0 12px 40px rgba(99,102,241,0.18);
+  max-width: 360px;
+  width: 100%;
+}
+#win-screen.visible { display: flex; }
+
+.win-star  { font-size: 3rem; line-height: 1; }
+.win-title { font-size: 1.7rem; font-weight: 900; color: var(--accent); }
+.win-the-word {
+  font-size: 1.55rem;
+  font-weight: 900;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  background: linear-gradient(120deg, var(--correct), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.win-stat {
+  font-size: 0.95rem;
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1.6;
+}
+.win-stat strong {
+  display: block;
+  font-size: 2.6rem;
+  font-weight: 900;
+  color: var(--accent);
+  line-height: 1.1;
+}
+.win-daily-note {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 700;
+  background: var(--tile-bg);
+  padding: 8px 16px;
+  border-radius: 10px;
+}
+.win-buttons { display: flex; flex-direction: column; gap: 10px; align-items: center; width: 100%; }
+
+.btn-primary {
+  padding: 12px 30px;
+  background: linear-gradient(120deg, var(--accent), var(--accent2));
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 1.05rem;
+  font-weight: 900;
+  font-family: 'Nunito', sans-serif;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(99,102,241,0.35);
+  transition: transform 0.1s, box-shadow 0.15s;
+  width: 100%;
+}
+.btn-primary:hover  { transform: translateY(-2px); box-shadow: 0 6px 22px rgba(99,102,241,0.45); }
+.btn-primary:active { transform: scale(0.97); }
+
+.btn-secondary {
+  padding: 10px 24px;
+  background: var(--tile-bg);
+  color: var(--fg);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  font-family: 'Nunito', sans-serif;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+.btn-secondary:hover { border-color: var(--accent); }
+
+/* ─── Admin panel ─────────────────────────────────────────────────────── */
+#admin-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 200;
+  flex-direction: column;
+}
+#admin-overlay.open { display: flex; }
+
+/* Admin top bar */
+#admin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 2px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+#admin-topbar h2 { font-size: 1.2rem; font-weight: 900; color: var(--accent); }
+
+.close-btn {
+  background: var(--tile-bg); border: 1.5px solid var(--border); border-radius: 10px;
+  font-size: 1rem; cursor: pointer; color: var(--fg); padding: 6px 12px;
+  font-weight: 800; font-family: 'Nunito', sans-serif; transition: border-color 0.15s;
+}
+.close-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
+/* Login section */
+#admin-login-section {
+  flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.admin-login-card {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 18px;
+  padding: 32px 28px;
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.admin-login-card h3 { font-size: 1.1rem; font-weight: 900; color: var(--fg); }
+
+.admin-login-form { display: flex; flex-direction: column; gap: 10px; }
+
+.admin-field {
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 2px solid var(--border);
+  background: var(--tile-bg);
+  color: var(--fg);
+  font-size: 1rem;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 700;
+  outline: none;
+}
+.admin-field:focus { border-color: var(--accent); }
+
+.admin-error { color: #ef4444; font-size: 0.85rem; font-weight: 700; min-height: 18px; }
+
+/* Main admin content */
+#admin-main-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.admin-toolbar {
+  padding: 14px 20px;
+  background: var(--surface);
+  border-bottom: 2px solid var(--border);
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.add-row { display: flex; gap: 8px; align-items: center; }
+.add-row .admin-field {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  width: 160px;
+  flex-shrink: 0;
+}
+
+.btn-add {
+  padding: 11px 20px;
+  background: var(--correct); color: #fff; border: none; border-radius: 10px;
+  font-size: 0.95rem; font-weight: 900; font-family: 'Nunito', sans-serif;
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  transition: filter 0.15s;
+}
+.btn-add:hover { filter: brightness(1.1); }
+
+.add-error-wrap { display: flex; align-items: center; }
+.admin-error { color: #ef4444; font-size: 0.85rem; font-weight: 700; min-height: 18px; }
+
+/* Word list scroll area */
+#word-list-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.word-group {}
+.word-group-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.word-group-title {
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--muted);
+}
+.word-group-count {
+  background: var(--tile-bg);
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--muted);
+  padding: 2px 9px;
+}
+
+.word-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.word-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  transition: border-color 0.15s;
+}
+.word-row:hover { border-color: var(--accent); }
+.word-row.custom { border-left: 4px solid var(--accent); }
+.word-row.custom .word-text { color: var(--accent); }
+
+.word-text {
+  font-size: 1.05rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.word-tag {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: #ede9fe;
+  color: #7c3aed;
+  flex-shrink: 0;
+}
+
+.del-btn {
+  background: none;
+  border: 1.5px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--absent);
+  font-size: 0.8rem;
+  font-weight: 800;
+  font-family: 'Nunito', sans-serif;
+  padding: 4px 10px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+.del-btn:hover { background: #fee2e2; color: #ef4444; border-color: #fca5a5; }
+
+/* Admin bottom bar */
+#admin-bottombar {
+  padding: 12px 20px;
+  border-top: 2px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  gap: 12px;
+}
+.word-total { font-size: 0.85rem; font-weight: 700; color: var(--muted); }
+.word-total span { color: var(--accent); font-weight: 900; font-size: 1rem; }
+
+.admin-section-label {
+  font-size: 0.78rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 1.5px; color: var(--muted);
+}
+
+/* ─── Fireworks ───────────────────────────────────────────────────────── */
+#fireworks-canvas {
+  position: fixed; inset: 0; pointer-events: none; z-index: 300;
+  width: 100%; height: 100%;
+}
+</style>
+
+<canvas id="fireworks-canvas"></canvas>
+
+<header>
+  <div class="logo">Woordle 🔤</div>
+  <div class="header-actions">
+    <button class="icon-btn" id="new-game-btn" title="Nieuw oefenwoord">🎲</button>
+    <button class="icon-btn" id="admin-open-btn" title="Beheerder">⚙️</button>
+  </div>
+</header>
+
+<div id="mode-badge">
+  <span class="badge badge-daily" id="mode-label">📅 Woord van de dag</span>
+  <span class="badge-date" id="mode-date"></span>
+</div>
+
+<div id="game-area">
+  <div id="board-wrap"></div>
+  <div id="message"></div>
+  <div id="keyboard">
+    <div class="key-row" id="krow1"></div>
+    <div class="key-row" id="krow2"></div>
+    <div class="key-row" id="krow3"></div>
+  </div>
+</div>
+
+<div id="win-screen">
+  <div class="win-star">🌟</div>
+  <div class="win-title" id="win-title">Super gedaan!</div>
+  <div class="win-the-word" id="win-word"></div>
+  <div class="win-stat">
+    Aantal pogingen:
+    <strong id="win-attempts">?</strong>
+  </div>
+  <div class="win-daily-note" id="win-daily-note" hidden></div>
+  <div class="win-buttons" id="win-buttons"></div>
+</div>
+
+<!-- ─── Admin overlay ─── -->
+<div id="admin-overlay">
+  <div id="admin-topbar">
+    <h2>⚙️ Woordenlijst beheren</h2>
+    <button class="close-btn" id="admin-close-btn">✕ Sluiten</button>
+  </div>
+
+  <div id="admin-login-section">
+    <div class="admin-login-card">
+      <h3>🔒 Inloggen als beheerder</h3>
+      <div class="admin-login-form">
+        <p style="font-size:.9rem;color:var(--muted);font-weight:700;">Voer het wachtwoord in om woorden toe te voegen of te verwijderen.</p>
+        <input type="password" class="admin-field" id="admin-pw-field" placeholder="Wachtwoord…">
+        <div class="admin-error" id="admin-pw-error"></div>
+        <button class="btn-primary" id="admin-login-btn" style="width:fit-content;">Inloggen</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="admin-main-section" hidden>
+    <div class="admin-toolbar">
+      <div class="add-row">
+        <input type="text" class="admin-field" id="add-word-input" maxlength="6" placeholder="WOORD">
+        <button class="btn-add" id="add-word-btn">+ Voeg toe</button>
+      </div>
+      <div class="add-error-wrap">
+        <div class="admin-error" id="add-error"></div>
+      </div>
+    </div>
+    <div id="word-list-area"></div>
+    <div id="admin-bottombar">
+      <div class="word-total">Totaal: <span id="word-count">0</span> woorden</div>
+      <button class="btn-secondary" id="admin-logout-btn">Uitloggen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Default word list (5–6 letters, ~400 words) ────────────────────────────
+const DEFAULTS = [
+  // 5 letters
+  'AARDE','ADDER','AKKER','ALBUM','AMBER','ANKER','APPEL','AREND','ATLAS',
+  'BARET','BASIS','BEEST','BETON','BEZEM','BIZON','BLAAS','BLAUW','BLOEM',
+  'BODEM','BORST','BOTER','BRAND','BREIN','BRIEF','BROOD','CHIPS','DATUM',
+  'DEKEN','DONUT','DRAAK','DRAMA','DROOM','ELFJE','EMMER','ENGEL','FEEST',
+  'FIETS','FILMS','FLITS','FLUIT','FORUM','GALOP','GEEST','GETAL','GEVAL',
+  'GIRAF','GLANS','GLOBE','GRAAF','GRAAN','GRENS','GRIEP','GRIJS','GROND',
+  'GROEP','GROEN','HAARD','HAMER','HAVIK','HAVEN','HAZEN','HEIDE','HEMEL',
+  'HOOFD','HOORN','HORDE','HOTEL','HUMOR','IJZER','IMKER','INDEX','JACHT',
+  'JAGER','KAJAK','KAARS','KAART','KAMER','KEBAB','KEGEL','KERST','KEUZE',
+  'KEVER','KLANK','KLEUR','KLOOF','KNOOP','KOERS','KOGEL','KOORD','KRAAL',
+  'KRAAN','KRANT','KREEK','KROON','KRIJT','KRUIS','KUBUS','LAARS','LARVE',
+  'LASER','LASSO','LEEUW','LENTE','LEPEL','LEVER','LICHT','LIJST','LOPER',
+  'LOTUS','LUNCH','MAGIE','MANGO','MARKT','MEREL','METRO','MEUTE','MIXER',
+  'MOLEN','MOTOR','MYTHE','NAALD','NACHT','NAGEL','NEVEL','NINJA','NOTEN',
+  'OEVER','OFFER','OTTER','PAARS','PANDA','PAREL','PASTA','PATAT','PAUZE',
+  'PAARD','PIANO','PIXEL','PLAAT','PLONS','PLUIM','POEMA','POORT','PRINS',
+  'PROEF','PRIJS','RADAR','RAKET','RATEL','REBEL','REEKS','REGEL','REGEN',
+  'ROBOT','ROVER','RUZIE','SALON','SAUNA','SCHAT','SCHIL','SCHIP','SCOUT',
+  'SEPIA','SERRE','SJAAL','SLANG','SLEDE','SLOOT','SLURF','SNOEK','SNOEP',
+  'SPADE','SPEER','SPELD','SPIER','SPOOK','SPORT','STAAF','STANK','STIER',
+  'STOEL','STOEP','STOOM','STOUT','STRAF','STRIK','STRIP','STORM','STUUR',
+  'TAART','TAFEL','TANTE','TAPIR','TARWE','TEGEL','TITEL','TOAST','TOETS',
+  'TOREN','TRAAN','TREIN','TREDE','VACHT','VADER','VAREN','VEGER','VEREN',
+  'VETER','VIOOL','VLOED','VLOER','VLOOT','VOGEL','VREDE','VROUW','WAFEL',
+  'WAGEN','WAPEN','WATER','WEZEN','WOORD','WORST','ZEBRA','ZEGEL','ZEGEN',
+  'ZWAAN','ZWART','ZWEET','ZWIJN','ZUCHT','ZOMER','ZONDE',
+  // 6 letters
+  'AANVAL','BAKKER','BALLON','BALLET','BALPEN','BOEKET','BONNET','BOOTJE',
+  'BORREL','BUREAU','CACTUS','CAMERA','CIJFER','CIRKEL','CITRUS','DANSER',
+  'DOBBER','DOCTOR','DOLLAR','DOMINO','DUIKER','EILAND','FAKKEL','FENIKS',
+  'FIGUUR','GEMBER','GIETER','HALTER','HEKSJE','HENGST','HERDER','HERFST',
+  'HERTOG','HOOGTE','HORZEL','HUMEUR','INGANG','INSECT','JAGUAR','JUNGLE',
+  'JUWEEL','KAJUIT','KAMEEL','KANEEL','KARATE','KAPPER','KARPER','KARTON',
+  'KASTJE','KATROL','KEUKEN','KIKKER','KOBOLD','KOFFER','KOMEET','KOMPAS',
+  'KONIJN','KOPBAL','KOPPEL','KORAAL','KORREL','KOORTS','KREEFT','KROKUS',
+  'KUSSEN','KWARTS','LADDER','LACHEN','LAPTOP','LAWAAI','LEUGEN','LETTER',
+  'LIEFDE','LOKAAL','LUSTER','MAATJE','MAGIER','MANTEL','MANIER','MARMOT',
+  'MASKER','MIDDAG','MODDER','MOEDER','MOERAS','MONNIK','MORGEN','MUSEUM',
+  'MUZIEK','NATUUR','NUMMER','ORKEST','PALEIS','PANTER','PAPIER','PAPAJA',
+  'PARADE','PARDON','PARTIJ','PATENT','PERZIK','PILOOT','PIRAAT','PLANET',
+  'POEDER','POSTER','PUNTEN','PUZZEL','RACKET','RAPPER','RECEPT','REIGER',
+  'RIDDER','RIVIER','ROBIJN','RUGZAK','RUIMTE','SAFARI','SALAMI','SCHAAR',
+  'SCHERP','SCHOEN','SCHORS','SCHURK','SCHUUR','SERVET','SIRENE','SLAPEN',
+  'SNEEUW','SOKKEN','SPECHT','SPRONG','STEKEL','STRAND','STRAAT','STRIJD',
+  'STROOP','SUIKER','SULTAN','TABLET','TAKKEN','TALENT','TANKER','TAPIJT',
+  'TEMPEL','TENNIS','TICKET','TIJGER','TOETER','TOILET','TOMAAT','TOORTS',
+  'TROOST','TUNNEL','VARKEN','VERBOD','VIKING','VIOLET','VISSER','VLUCHT',
+  'VRUCHT','WALVIS','WERELD','WIMPEL','WINKEL','WINTER','WORTEL','ZAKMES',
+  'ZEEMAN','ZILVER','ZOMBIE','ZWALUW',
+];
+
+const DEFAULT_SET = [...new Set(
+  DEFAULTS.map(w => w.toUpperCase()).filter(w => w.length >= 5 && w.length <= 6 && /^[A-Z]+$/.test(w))
+)];
+
+// ── Validation dictionary (extra valid Dutch words beyond game target words) ──
+const EXTRA_DICT = new Set([
+  // A
+  'AARDS','AARTS','AARZL',
+  // B
+  'BAARD','BAKEN','BAKJE','BANEN','BANJO','BARST','BEEFT','BIJEN','BLANK','BLEEK',
+  'BLIES','BLIJK','BLOED','BLOEI','BLOOT','BOEIT','BOERT','BOMEN','BONKT','BOORD',
+  'BREDE','BRENG','BLOND','BRONS','BROOS','BRUID','BRUUT','BUIGT','BUURT','BURGT',
+  // C
+  'CENTS','CHAOS','CLIPS','CLUBS','COUPE','CRASH','CROSS',
+  // D
+  'DACHT','DAALT','DAGJE','DANKT','DERDE','DICHT','DOPEN','DORST','DUITS','DUIKT','DUURT',
+  // E
+  'EERST','ERGST','ETAGE',
+  // F
+  'FAALT','FABEL','FAKIR','FIJNE','FLAUW','FLINK','FLOOT','FOLIE','FOREL','FOTOS','FRANK','FRUIT',
+  // G
+  'GAZON','GELUK','GEVEN','GILDE','GLOED','GOEDE','GRAUW','GREIN','GRIET','GROTE','GRUIS','GROOT',
+  // H
+  'HAAKS','HAALT','HAAST','HAKEN','HALEN','HALTE','HANGT','HAREN','HECHT','HEKEL',
+  'HELFT','HETEN','HITTE','HOEFT','HOEST','HOEVE','HORST','HOUDT','HULDE','HULST',
+  // I
+  'IJDEL','IJSJE','IJZEL',
+  // J
+  'JICHT','JOELT',
+  // K
+  'KAKEL','KAMPT','KASTE','KATJE','KAUWT','KEERT','KIEST','KLEIN','KLOPT','KNAAP',
+  'KNALT','KNIKT','KNORT','KOKEN','KOMMA','KOPJE','KORST','KOUDE','KRAMP','KREUN',
+  'KRING','KRUIK','KUDDE','KUNST','KWAAL','KWIEK',
+  // L
+  'LAKEN','LANGS','LAPJE','LEEFT','LEEST','LEIDT','LEVEN','LINDE','LINIE','LINZE',
+  'LOODS','LOOPT','LOPEN',
+  // M
+  'MAAKT','MAGER','MAKER','MANEN','MOGEN','MOORD','MOPJE','MORST',
+  // N
+  'NAAST','NABIJ','NADER','NEMEN','NETTO','NODIG','NOORS',
+  // O
+  'OLIJK','ONDER','OPENT',
+  // P
+  'PACHT','PINDA','PLANK','PLEIT','PLINT','PLOTS','POLKA','PRENT','PRIMA',
+  // R
+  'RAAKT','RECHT','REIKT','RIJDT','RIJMT','RIJST','ROEST','RONDE','ROOMS',
+  // S
+  'SCHOP','SCHOT','SLAAP','SLAAT','SLEET','SLEPT','SLOEG','SLUIT','SMELT',
+  'SNAAK','SNOOD','SOORT','SPANT','SPEEL','SPOED','STAMP','STEEK','STEEN',
+  'STEEL','STEIL','STERK','STIJL','STIKT','STOKT','STOMP','STOER','STUNT',
+  // T
+  'TEKEN','TIKJE','TOONT','TORST','TREKT','TROEP','TROMP',
+  // U
+  'ULTRA',
+  // V
+  'VLEES','VLERK','VLIET','VLOEK','VOELT','VOERT','VORST','VRIJE',
+  // W
+  'WACHT','WARME','WEEKT','WEEGT','WEENT','WETEN','WIEGT','WIJKT','WIJZE','WINST','WONEN',
+  // Z
+  'ZACHT','ZAKJE','ZEILT','ZELFS','ZICHT','ZIJDE','ZILTE','ZINGT','ZINKT','ZOEKT','ZWAAR','ZWEMT',
+  // 6-letter extras
+  'BREKEN','DENKEN','ECHTER','GEWOON','GOOIEN','GROTER','HELDER',
+  'HOEVEN','KANSEN','KLEINE','KUNNEN','LANDEN','LANGER','LENZEN',
+  'LESSEN','LETTEN','MENGEN','MESSEN','MIDDEN','MOETEN','NIEUWE',
+  'PLEGEN','PRATEN','RIJDEN','ROEPEN','RONDEN','SLECHT','SMAKEN',
+  'SNIJDT','STEUNT','TELLEN','TUSSEN','TWEEDE','VALLEN','VINDEN',
+  'VRAGEN','WILLEN','ZETTEN','ZOEKEN','ZWAAIT','SCHIJN',
+].map(w => w.toUpperCase()));
+
+// ── Storage ───────────────────────────────────────────────────────────────
+// Single list: starts as DEFAULT_SET, admin can add/remove any word
+const WORDS_KEY   = 'woordle_words_v3';
+const DAILY_KEY   = 'woordle_daily_v2';
+const ADMIN_PW    = 'leerkracht';
+
+function getAllWords() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(WORDS_KEY));
+    if (Array.isArray(stored) && stored.length > 0) return stored;
+  } catch {}
+  // First run: initialise from defaults
+  saveAllWords([...DEFAULT_SET]);
+  return [...DEFAULT_SET];
+}
+function saveAllWords(arr) {
+  try { localStorage.setItem(WORDS_KEY, JSON.stringify(arr)); } catch {}
+}
+function isValidWord(word) {
+  return DEFAULT_SET.includes(word) || EXTRA_DICT.has(word) || getAllWords().includes(word);
+}
+
+// ── Daily word ────────────────────────────────────────────────────────────
+function todayStr() {
+  // Use local date so everyone on the same calendar day gets the same word
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function getDailyWord() {
+  // Use only DEFAULT_SET so the word is the same for everyone regardless of custom words
+  const words = DEFAULT_SET;
+  const dateKey = todayStr();
+  let hash = 0;
+  for (let i = 0; i < dateKey.length; i++) hash = (hash * 31 + dateKey.charCodeAt(i)) >>> 0;
+  return words[hash % words.length];
+}
+
+function getDailyState() {
+  try {
+    const s = JSON.parse(localStorage.getItem(DAILY_KEY) || '{}');
+    if (s.date !== todayStr()) return { date: todayStr(), guesses: [], solved: false };
+    return s;
+  } catch { return { date: todayStr(), guesses: [], solved: false }; }
+}
+function saveDailyState(state) {
+  try { localStorage.setItem(DAILY_KEY, JSON.stringify(state)); } catch {}
+}
+
+// ── Game state ────────────────────────────────────────────────────────────
+let mode       = 'daily';   // 'daily' | 'practice'
+let target     = '';
+let wordLen    = 0;
+let letters    = [];        // Array(wordLen) — current input
+let cursorPos  = 0;
+let guesses    = [];        // [{word, result}]
+let gameOver   = false;
+let keyStatus  = {};
+
+// ── Evaluate ──────────────────────────────────────────────────────────────
+function evaluate(guess, tgt) {
+  const res   = Array(guess.length).fill('absent');
+  const tArr  = tgt.split('');
+  const gArr  = guess.split('');
+  for (let i = 0; i < guess.length; i++) {
+    if (gArr[i] === tArr[i]) { res[i] = 'correct'; tArr[i] = null; gArr[i] = null; }
+  }
+  for (let i = 0; i < guess.length; i++) {
+    if (gArr[i] !== null) {
+      const idx = tArr.indexOf(gArr[i]);
+      if (idx !== -1) { res[i] = 'present'; tArr[idx] = null; }
+    }
+  }
+  return res;
+}
+
+// ── DOM refs ──────────────────────────────────────────────────────────────
+const $board = document.getElementById('board-wrap');
+const $msg   = document.getElementById('message');
+const $wins  = document.getElementById('win-screen');
+const $ga    = document.getElementById('game-area');
+
+// ── Render ────────────────────────────────────────────────────────────────
+function renderBoard() {
+  $board.innerHTML = '';
+  const lenClass = wordLen === 6 ? 'len-6' : wordLen === 7 ? 'len-7' : '';
+
+  guesses.forEach(g => {
+    const row = document.createElement('div');
+    row.className = 'row' + (lenClass ? ' ' + lenClass : '');
+    g.word.split('').forEach((ch, i) => {
+      const t = document.createElement('div');
+      t.className = `tile ${g.result[i]} flip-${i}`;
+      t.textContent = ch;
+      row.appendChild(t);
+    });
+    $board.appendChild(row);
+  });
+
+  if (!gameOver) {
+    const row = document.createElement('div');
+    row.className = 'row' + (lenClass ? ' ' + lenClass : '');
+    row.id = 'current-row';
+    for (let i = 0; i < wordLen; i++) {
+      const t = document.createElement('div');
+      const hasLetter = !!letters[i];
+      const isCursor  = i === cursorPos;
+      let cls = 'tile active-tile';
+      if (hasLetter) cls += ' has-letter';
+      if (isCursor)  cls += ' cursor';
+      if (!hasLetter && isCursor) cls += ' empty';
+      t.className = cls;
+      t.textContent = letters[i] || '';
+      t.addEventListener('click', () => { cursorPos = i; renderBoard(); });
+      row.appendChild(t);
+    }
+    $board.appendChild(row);
+  }
+
+  $board.scrollTop = $board.scrollHeight;
+}
+
+function showMessage(msg, duration = 1800) {
+  $msg.textContent = msg;
+  if (duration) setTimeout(() => { if ($msg.textContent === msg) $msg.textContent = ''; }, duration);
+}
+
+// ── Keyboard ──────────────────────────────────────────────────────────────
+const KB_ROWS = [
+  ['Q','W','E','R','T','Y','U','I','O','P'],
+  ['A','S','D','F','G','H','J','K','L'],
+  ['ENTER','Z','X','C','V','B','N','M','⌫'],
+];
+
+function buildKeyboard() {
+  KB_ROWS.forEach((letters, ri) => {
+    const row = document.getElementById('krow' + (ri+1));
+    row.innerHTML = '';
+    letters.forEach(l => {
+      const btn = document.createElement('button');
+      btn.className = 'key' + (l.length > 1 ? ' wide' : '');
+      btn.textContent = l;
+      btn.dataset.key = l;
+      btn.addEventListener('click', () => handleKey(l));
+      row.appendChild(btn);
+    });
+  });
+}
+
+function updateKeyboard() {
+  document.querySelectorAll('.key').forEach(btn => {
+    const k = btn.dataset.key;
+    if (keyStatus[k]) btn.className = 'key' + (k.length > 1 ? ' wide' : '') + ' ' + keyStatus[k];
+  });
+}
+
+// ── Input ─────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (document.getElementById('admin-overlay').classList.contains('open')) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === 'Enter')     handleKey('ENTER');
+  else if (e.key === 'Backspace') handleKey('⌫');
+  else if (e.key === 'ArrowLeft')  { if (cursorPos > 0) { cursorPos--; renderBoard(); } }
+  else if (e.key === 'ArrowRight') { if (cursorPos < wordLen-1) { cursorPos++; renderBoard(); } }
+  else if (/^[a-zA-Z]$/.test(e.key)) handleKey(e.key.toUpperCase());
+});
+
+function handleKey(k) {
+  if (gameOver) return;
+  if (k === '⌫') {
+    if (letters[cursorPos]) {
+      letters[cursorPos] = '';
+      renderBoard();
+    } else if (cursorPos > 0) {
+      cursorPos--;
+      letters[cursorPos] = '';
+      renderBoard();
+    }
+    return;
+  }
+  if (k === 'ENTER') { submitGuess(); return; }
+  if (/^[A-Z]$/.test(k)) {
+    letters[cursorPos] = k;
+    // advance cursor to next empty, or next position
+    let next = -1;
+    for (let i = cursorPos + 1; i < wordLen; i++) { if (!letters[i]) { next = i; break; } }
+    if (next === -1) for (let i = 0; i < cursorPos; i++) { if (!letters[i]) { next = i; break; } }
+    if (next === -1) next = Math.min(cursorPos + 1, wordLen - 1);
+    cursorPos = next;
+    renderBoard();
+  }
+}
+
+function submitGuess() {
+  const filled = letters.every(l => l !== '');
+  if (!filled) {
+    shakeCurrent();
+    showMessage('Vul alle vakjes in!');
+    return;
+  }
+  const word = letters.join('');
+  if (!isValidWord(word)) {
+    shakeCurrent();
+    showMessage('Dit woord bestaat niet! Kies een ander woord.');
+    return;
+  }
+  const result = evaluate(word, target);
+  guesses.push({ word, result });
+
+  for (let i = 0; i < word.length; i++) {
+    const l = word[i], r = result[i], prev = keyStatus[l];
+    if (!prev || prev === 'absent' || (prev === 'present' && r === 'correct')) keyStatus[l] = r;
+  }
+  updateKeyboard();
+
+  if (mode === 'daily') {
+    const ds = getDailyState();
+    ds.guesses = guesses;
+    if (result.every(r => r === 'correct')) ds.solved = true;
+    saveDailyState(ds);
+  }
+
+  const isWin = result.every(r => r === 'correct');
+  letters = Array(wordLen).fill('');
+  cursorPos = 0;
+  gameOver = isWin;
+  renderBoard();
+
+  if (isWin) {
+    setTimeout(showWin, result.length * 100 + 400);
+    setTimeout(launchFireworks, result.length * 100 + 200);
+  }
+}
+
+function shakeCurrent() {
+  const row = document.getElementById('current-row');
+  if (!row) return;
+  row.classList.add('shake');
+  row.addEventListener('animationend', () => row.classList.remove('shake'), { once: true });
+}
+
+// ── Win screen ────────────────────────────────────────────────────────────
+function showWin() {
+  $ga.style.display = 'none';
+  document.getElementById('win-word').textContent = target;
+  document.getElementById('win-attempts').textContent = guesses.length;
+  document.getElementById('win-title').textContent =
+    guesses.length === 1 ? 'Geweldig! 🏆' :
+    guesses.length <= 3  ? 'Super gedaan! 🌟' :
+    guesses.length <= 6  ? 'Goed zo! 😊' : 'Gelukt! 💪';
+
+  const $note = document.getElementById('win-daily-note');
+  const $btns = document.getElementById('win-buttons');
+  $btns.innerHTML = '';
+
+  if (mode === 'daily') {
+    $note.hidden = false;
+    $note.textContent = '📅 Morgen staat er een nieuw dagwoord klaar!';
+    const btnPractice = document.createElement('button');
+    btnPractice.className = 'btn-primary';
+    btnPractice.textContent = 'Ga oefenen 🎲';
+    btnPractice.addEventListener('click', () => startGame('practice'));
+    $btns.appendChild(btnPractice);
+  } else {
+    $note.hidden = true;
+    const btnNext = document.createElement('button');
+    btnNext.className = 'btn-primary';
+    btnNext.textContent = 'Nieuw woord 🎲';
+    btnNext.addEventListener('click', () => startGame('practice'));
+    $btns.appendChild(btnNext);
+    const btnDaily = document.createElement('button');
+    btnDaily.className = 'btn-secondary';
+    btnDaily.textContent = '📅 Terug naar dagwoord';
+    btnDaily.addEventListener('click', () => startGame('daily'));
+    $btns.appendChild(btnDaily);
+  }
+
+  $wins.classList.add('visible');
+}
+
+// ── New game button ────────────────────────────────────────────────────────
+document.getElementById('new-game-btn').addEventListener('click', () => startGame('practice'));
+
+// ── Start game ────────────────────────────────────────────────────────────
+function startGame(newMode) {
+  mode = newMode;
+  $wins.classList.remove('visible');
+  $ga.style.display = '';
+
+  const $label = document.getElementById('mode-label');
+  const $date  = document.getElementById('mode-date');
+  const today  = todayStr();
+
+  if (mode === 'daily') {
+    const ds = getDailyState();
+    if (ds.solved) {
+      // Already solved today — switch to practice
+      startGame('practice');
+      showMessage('Dagwoord al gevonden vandaag! 🎉 Hier is een oefenwoord.', 3000);
+      return;
+    }
+    target  = getDailyWord();
+    wordLen = target.length;
+    guesses = ds.guesses || [];
+    gameOver = ds.solved;
+    keyStatus = {};
+    // Rebuild key status from saved guesses
+    guesses.forEach(g => {
+      g.word.split('').forEach((l, i) => {
+        const r = g.result[i], prev = keyStatus[l];
+        if (!prev || prev === 'absent' || (prev === 'present' && r === 'correct')) keyStatus[l] = r;
+      });
+    });
+    $label.textContent = '📅 Woord van de dag';
+    $label.className = 'badge badge-daily';
+    $date.textContent = today;
+  } else {
+    // Practice: pick random word from current list, excluding today's daily
+    const daily = getDailyWord();
+    const pool  = getAllWords().filter(w => w !== daily);
+    target  = pool.length ? pool[Math.floor(Math.random() * pool.length)] : daily;
+    wordLen = target.length;
+    guesses = [];
+    gameOver = false;
+    keyStatus = {};
+    $label.textContent = '🎲 Oefenwoord';
+    $label.className = 'badge badge-practice';
+    $date.textContent = '';
+  }
+
+  letters   = Array(wordLen).fill('');
+  cursorPos = 0;
+  buildKeyboard();
+  updateKeyboard();
+  renderBoard();
+  $msg.textContent = `Raad het woord — ${wordLen} letters!`;
+  setTimeout(() => { $msg.textContent = ''; }, 2500);
+}
+
+// ── Fireworks ─────────────────────────────────────────────────────────────
+const fCanvas = document.getElementById('fireworks-canvas');
+const fCtx    = fCanvas.getContext('2d');
+let fParts = [], fAnimId = null;
+
+function resizeFCanvas() { fCanvas.width = window.innerWidth; fCanvas.height = window.innerHeight; }
+window.addEventListener('resize', resizeFCanvas);
+resizeFCanvas();
+
+const FW_COLORS = ['#6366f1','#ec4899','#22c55e','#f59e0b','#06b6d4','#f97316','#a855f7','#ef4444'];
+
+function burst(x, y) {
+  const n = 60 + Math.random() * 40 | 0;
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, s = 2 + Math.random() * 6;
+    fParts.push({
+      x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s - 2,
+      r: 3 + Math.random()*4, alpha: 1,
+      color: FW_COLORS[Math.floor(Math.random()*FW_COLORS.length)],
+      decay: 0.013 + Math.random()*0.01,
+    });
+  }
+}
+
+function tickFW() {
+  fCtx.clearRect(0, 0, fCanvas.width, fCanvas.height);
+  fParts = fParts.filter(p => p.alpha > 0.02);
+  fParts.forEach(p => {
+    p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.vx *= 0.98; p.alpha -= p.decay;
+    fCtx.save();
+    fCtx.globalAlpha = Math.max(0, p.alpha);
+    fCtx.fillStyle = p.color;
+    fCtx.beginPath(); fCtx.arc(p.x, p.y, p.r, 0, Math.PI*2); fCtx.fill();
+    fCtx.restore();
+  });
+  fAnimId = fParts.length > 0 ? requestAnimationFrame(tickFW) : null;
+}
+
+function launchFireworks() {
+  const W = fCanvas.width, H = fCanvas.height;
+  const pos = [[W*.25,H*.3],[W*.75,H*.25],[W*.5,H*.35],[W*.15,H*.6],[W*.85,H*.55]];
+  pos.forEach(([x,y],i) => setTimeout(() => burst(x,y), i*140));
+  setTimeout(() => pos.forEach(([x,y],i) => setTimeout(() => burst(x+40,y-30), i*120)), 800);
+  if (!fAnimId) fAnimId = requestAnimationFrame(tickFW);
+}
+
+// ── Admin ─────────────────────────────────────────────────────────────────
+let adminLoggedIn = false;
+
+document.getElementById('admin-open-btn').addEventListener('click', openAdmin);
+document.getElementById('admin-close-btn').addEventListener('click', closeAdmin);
+document.getElementById('admin-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('admin-overlay')) closeAdmin();
+});
+
+function openAdmin() {
+  document.getElementById('admin-overlay').classList.add('open');
+  if (!adminLoggedIn) {
+    document.getElementById('admin-login-section').hidden = false;
+    document.getElementById('admin-main-section').hidden = true;
+    document.getElementById('admin-pw-field').value = '';
+    document.getElementById('admin-pw-error').textContent = '';
+  } else { showAdminMain(); }
+}
+function closeAdmin() { document.getElementById('admin-overlay').classList.remove('open'); }
+
+document.getElementById('admin-login-btn').addEventListener('click', doAdminLogin);
+document.getElementById('admin-pw-field').addEventListener('keydown', e => { if (e.key === 'Enter') doAdminLogin(); });
+
+function doAdminLogin() {
+  if (document.getElementById('admin-pw-field').value === ADMIN_PW) {
+    adminLoggedIn = true;
+    document.getElementById('admin-pw-error').textContent = '';
+    showAdminMain();
+  } else {
+    document.getElementById('admin-pw-error').textContent = 'Fout wachtwoord. Probeer opnieuw.';
+  }
+}
+
+document.getElementById('admin-logout-btn').addEventListener('click', () => {
+  adminLoggedIn = false;
+  document.getElementById('admin-login-section').hidden = false;
+  document.getElementById('admin-main-section').hidden = true;
+  document.getElementById('admin-pw-field').value = '';
+});
+
+function showAdminMain() {
+  document.getElementById('admin-login-section').hidden = true;
+  document.getElementById('admin-main-section').hidden = false;
+  renderWordChips();
+}
+
+function renderWordChips() {
+  const all    = getAllWords();
+  document.getElementById('word-count').textContent = all.length;
+  const $area  = document.getElementById('word-list-area');
+  $area.innerHTML = '';
+
+  [5, 6].forEach(len => {
+    const words = [...all.filter(w => w.length === len)].sort((a, b) => a.localeCompare(b));
+    if (!words.length) return;
+
+    const group = document.createElement('div');
+    group.className = 'word-group';
+
+    const header = document.createElement('div');
+    header.className = 'word-group-header';
+    const title = document.createElement('span');
+    title.className = 'word-group-title';
+    title.textContent = `${len} letters`;
+    const count = document.createElement('span');
+    count.className = 'word-group-count';
+    count.textContent = words.length;
+    header.appendChild(title);
+    header.appendChild(count);
+    group.appendChild(header);
+
+    const rows = document.createElement('div');
+    rows.className = 'word-rows';
+
+    words.forEach(word => {
+      const isDefault = DEFAULT_SET.includes(word);
+      const row = document.createElement('div');
+      row.className = 'word-row' + (isDefault ? '' : ' custom');
+
+      const left = document.createElement('div');
+      left.style.cssText = 'display:flex;align-items:center;gap:10px;';
+
+      const txt = document.createElement('span');
+      txt.className = 'word-text';
+      txt.textContent = word;
+      left.appendChild(txt);
+
+      if (!isDefault) {
+        const tag = document.createElement('span');
+        tag.className = 'word-tag';
+        tag.textContent = 'Zelf toegevoegd';
+        left.appendChild(tag);
+      }
+
+      row.appendChild(left);
+
+      const del = document.createElement('button');
+      del.className = 'del-btn';
+      del.textContent = 'Verwijder';
+      del.addEventListener('click', () => {
+        saveAllWords(getAllWords().filter(w => w !== word));
+        renderWordChips();
+      });
+      row.appendChild(del);
+
+      rows.appendChild(row);
+    });
+
+    group.appendChild(rows);
+    $area.appendChild(group);
+  });
+}
+
+document.getElementById('add-word-btn').addEventListener('click', addWord);
+document.getElementById('add-word-input').addEventListener('keydown', e => { if (e.key === 'Enter') addWord(); });
+
+function addWord() {
+  const raw = document.getElementById('add-word-input').value.toUpperCase().trim();
+  const $err = document.getElementById('add-error');
+  if (raw.length < 5 || raw.length > 6) { $err.textContent = 'Woord moet 5 of 6 letters zijn.'; return; }
+  if (!/^[A-Z]+$/.test(raw)) { $err.textContent = 'Alleen letters (geen cijfers of tekens).'; return; }
+  if (getAllWords().includes(raw)) { $err.textContent = 'Dit woord staat al in de lijst.'; return; }
+  $err.textContent = '';
+  const words = getAllWords(); words.push(raw);
+  saveAllWords(words);
+  document.getElementById('add-word-input').value = '';
+  renderWordChips();
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+startGame('daily');
+</script>
